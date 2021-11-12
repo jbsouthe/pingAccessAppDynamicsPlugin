@@ -16,6 +16,6 @@ It also supplies useful analytics data, which can be disabled. The volumes can b
 
     -DdisablePingAccessAnalytics=true
     
-##Change Log:
-#V1.0 - First support BT creation and backend mapping
-#V2.0 - Support for Analytics custom data "PingAccess-ProxyName", Backend Async Transaction Mapping, Backend URL naming
+## Change Log:
+# V1.0 - First support BT creation and backend mapping
+# V2.0 - Support for Analytics custom data "PingAccess-ProxyName", Backend Async Transaction Mapping, Backend URL naming
