@@ -1,7 +1,7 @@
+package com.cisco.josouthe;
+
 import com.appdynamics.instrumentation.sdk.Rule;
 import com.appdynamics.instrumentation.sdk.SDKClassMatchType;
-import com.appdynamics.instrumentation.sdk.contexts.ISDKUserContext;
-import com.appdynamics.instrumentation.sdk.template.AEntry;
 import com.appdynamics.instrumentation.sdk.template.AGenericInterceptor;
 import com.appdynamics.instrumentation.sdk.toolbox.reflection.IReflector;
 import com.appdynamics.instrumentation.sdk.toolbox.reflection.ReflectorException;
@@ -31,14 +31,12 @@ import java.util.Set;
  * Added reflection to build a ServletContext and changed AEntryPoint to AGenericInterceptor
  * Aug 5, 2020: Added custom data to identify Proxy Name in snapshot and analytics, can disable analytics support with jvm command line:
  *      -DdisablePingAccessAnalytics=true
+ *
+ * John Southerland
+ * Nov 18, 2021 : refactored to use my latest techniques, and help in troubleshooting a customer on v6.1.5
  */
 
-public class PingAccessEntryPointInterceptor extends AGenericInterceptor {
-
-    private static final Object CORRELATION_HEADER_KEY = "singularityheader";
-
-    Set<DataScope> dataScopes;
-
+public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
     IReflector getRequestReflector;
     IReflector getHeadersReflector;
     IReflector getFirstValueReflector;
@@ -59,14 +57,6 @@ public class PingAccessEntryPointInterceptor extends AGenericInterceptor {
 
     public PingAccessEntryPointInterceptor() {
         super();
-
-        dataScopes = new HashSet<DataScope>();
-
-        dataScopes.add(DataScope.SNAPSHOTS);
-        if( System.getProperty("disablePingAccessAnalytics","false").equalsIgnoreCase("false") ) {
-            dataScopes.add(DataScope.ANALYTICS);
-            this.getLogger().info("Enabling Analytics Collection of Ping Access Proxy Name Data, to disable add JVM property -DdisablePingAccessAnalytics=true");
-        }
 
         getRequestReflector = getNewReflectionBuilder().invokeInstanceMethod("getRequest", true).build();
         getHeadersReflector = getNewReflectionBuilder().invokeInstanceMethod("getHeaders", true).build();
@@ -92,7 +82,7 @@ public class PingAccessEntryPointInterceptor extends AGenericInterceptor {
 
 
     public Object onMethodBegin(Object object, String className, String methodName, Object[] params) {
-        this.getLogger().debug("PingAccessEntryPointInterceptor.onMethodBegin() start");
+        this.getLogger().debug(String.format("onMethodBegin() start method: %s.%s()",className,methodName));
         Object exchangeImpl = params[0];
         Transaction transaction;
         if( "com.pingidentity.pa.core.interceptor.HTTPClientInterceptor".equals(className) ) {
@@ -111,18 +101,20 @@ public class PingAccessEntryPointInterceptor extends AGenericInterceptor {
         } catch( ReflectorException rex ) {
           this.getLogger().warn("ReflectorException in Exchange.getProxy().getName() retrieval: "+ rex, rex);
         }
-        this.getLogger().debug("PingAccessEntryPointInterceptor.onMethodBegin() end");
-        return this;
+        this.getLogger().debug(String.format("onMethodBegin() end method: %s.%s() transaction: %s",className,methodName,transaction.getUniqueIdentifier()));
+        return transaction;
     }
 
     public void onMethodEnd(Object state, Object object, String className, String methodName, Object[] params, Throwable exception, Object returnVal) {
-        this.getLogger().debug("PingAccessEntryPointInterceptor.onMethodEnd() start");
+        Transaction transaction = (Transaction) state;
+        if( transaction == null ) return;
+        this.getLogger().debug(String.format("onMethodEnd() start method: %s.%s() transaction: %s",className,methodName,transaction.getUniqueIdentifier()));
         if( exception != null ) { 
-          AppdynamicsAgent.getTransaction().markAsError( exception.getMessage() );
+          transaction.markAsError( exception.getMessage() );
         }
-        AppdynamicsAgent.getTransaction().end();
+        transaction.end();
 
-        this.getLogger().debug("PingAccessEntryPointInterceptor.onMethodEnd() end");
+        this.getLogger().debug(String.format("onMethodEnd() end method: %s.%s() transaction: %s",className,methodName,transaction.getUniqueIdentifier()));
     }
 
     @Override

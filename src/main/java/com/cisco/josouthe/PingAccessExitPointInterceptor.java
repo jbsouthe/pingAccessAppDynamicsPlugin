@@ -1,8 +1,8 @@
+package com.cisco.josouthe;
+
 import com.appdynamics.agent.api.*;
 import com.appdynamics.instrumentation.sdk.Rule;
 import com.appdynamics.instrumentation.sdk.SDKClassMatchType;
-import com.appdynamics.instrumentation.sdk.contexts.ISDKUserContext;
-import com.appdynamics.instrumentation.sdk.template.AExit;
 import com.appdynamics.instrumentation.sdk.template.AGenericInterceptor;
 import com.appdynamics.instrumentation.sdk.toolbox.reflection.IReflector;
 import com.appdynamics.instrumentation.sdk.toolbox.reflection.ReflectorException;
@@ -25,11 +25,10 @@ import java.util.concurrent.CompletionStage;
  * Aug 5, 2020 : Changed from extending an AExit to extending an AGenericInterceptor; Start is the same from an InternalHttpClient,
  * but then adding a concurrency CompletionStage.whenCompleteAsync lambda function to end the exit call. This should be more in line with the iSDK
  *
+ * John Southerland
+ * Nov 18, 2021 : refactored to use my latest techniques, and help in troubleshooting a customer on v6.1.5
  */
-public class PingAccessExitPointInterceptor extends AGenericInterceptor {
-
-
-    private static final String CORRELATION_HEADER_KEY = "singularityheader";
+public class PingAccessExitPointInterceptor extends MyBaseInterceptor {
 
     IReflector getRequestReflector;
     IReflector getHeadersReflector;
@@ -68,7 +67,12 @@ public class PingAccessExitPointInterceptor extends AGenericInterceptor {
     }
 
     public Object onMethodBegin(Object object, String className, String methodName, Object[] params) {
-        this.getLogger().debug("PingAccessExitPointInterceptor.onMethodBegin() start");
+        this.getLogger().debug(String.format("onMethodBegin() start method: %s.%s()",className,methodName));
+        Transaction transaction = AppdynamicsAgent.getTransaction();
+        if( isFakeTransaction(transaction) ) {
+            getLogger().info("Oops, No transaction is active right now?");
+            return null;
+        }
         Map<String, String> properties = new HashMap<String, String>();
         Object exchange = params[0];
         Object request = null;
@@ -121,9 +125,9 @@ public class PingAccessExitPointInterceptor extends AGenericInterceptor {
         }
         ExitCall exitCall;
         if( ! "UNKNOWN-URL".equals(properties.get("URL")) ) {
-            exitCall = AppdynamicsAgent.getTransaction().startExitCall( properties, properties.get("URL"), EntryTypes.HTTP, true);
+            exitCall = transaction.startExitCall( properties, properties.get("URL"), EntryTypes.HTTP, true);
         } else {
-            exitCall = AppdynamicsAgent.getTransaction().startExitCall( properties, properties.get("HOST"), EntryTypes.POJO, true);
+            exitCall = transaction.startExitCall( properties, properties.get("HOST"), EntryTypes.POJO, true);
         }
         if(request != null) {
             Object headers = null;
@@ -132,7 +136,7 @@ public class PingAccessExitPointInterceptor extends AGenericInterceptor {
                 if (headers != null) {
                     getLogger().debug("ExitCall correlation header "+exitCall.getCorrelationHeader());
                     getLogger().debug("Adding correlation header to "+headers.getClass().getName());
-                    addReflector.execute(headers.getClass().getClassLoader(), headers, new String[]{CORRELATION_HEADER_KEY, (String) exitCall.getCorrelationHeader()});
+                    addReflector.execute(headers.getClass().getClassLoader(), headers, new String[]{AppdynamicsAgent.TRANSACTION_CORRELATION_HEADER, (String) exitCall.getCorrelationHeader()});
                 }
             }catch (Exception e){
                 getLogger().warn("Problem injecting header into exit call, exception: "+ e,e);
@@ -140,22 +144,19 @@ public class PingAccessExitPointInterceptor extends AGenericInterceptor {
                 if(headers != null) getLogger().warn("Adding correlation header to "+headers.getClass().getName());
             }
         }
-        this.getLogger().debug("PingAccessExitPointInterceptor.onMethodBegin() end");
-        return exitCall;
+        this.getLogger().debug(String.format("onMethodBegin() end method: %s.%s() exitCall: %s",className,methodName,exitCall.getCorrelationHeader()));
+        return new State( transaction, exitCall);
     }
 
     public void onMethodEnd(Object state, Object object, String className, String methodName, Object[] params, Throwable exception, Object returnVal) {
-        this.getLogger().debug("PingAccessExitPointInterceptor.onMethodEnd() start");
-        ExitCall exitCall = (ExitCall) state;
-        if(exitCall == null ) {
-            getLogger().warn("State is null in onMethodEnd?!?!? Aborting this exitcall");
-            return;
-        }
+        if( state == null ) return;
+        Transaction transaction = ((State)state).transaction;
+        ExitCall exitCall = ((State)state).exitCall;
+        this.getLogger().debug(String.format("onMethodEnd() start method: %s.%s() exitCall: %s",className,methodName,exitCall.getCorrelationHeader()));
         if( exception != null ) {
             this.getLogger().debug("PingExitPointInterceptor.onMethodEnd() exception found: "+ exception.toString() );
-            AppdynamicsAgent.getTransaction().markAsError( exception.toString() );
+            transaction.markAsError( exception.toString() );
         }
-        Transaction transaction = AppdynamicsAgent.getTransaction();
         CompletionStage<Object> completionStage = (CompletionStage<Object>) returnVal;
         completionStage.whenCompleteAsync( (response, cause ) -> { //this may be in another thread
             if( cause != null ) {
@@ -164,8 +165,16 @@ public class PingAccessExitPointInterceptor extends AGenericInterceptor {
             exitCall.end();
         });
         returnVal = completionStage;
-        this.getLogger().debug("PingAccessExitPointInterceptor.onMethodEnd() end");
+        this.getLogger().debug(String.format("onMethodEnd() start method: %s.%s() exitCall: completed",className,methodName));
     }
 
+    public class State {
+        public Transaction transaction;
+        public ExitCall exitCall;
+        public State( Transaction transaction, ExitCall exitCall) {
+            this.transaction=transaction;
+            this.exitCall=exitCall;
+        }
+    }
 
 }
