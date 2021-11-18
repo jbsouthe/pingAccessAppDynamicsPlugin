@@ -99,7 +99,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
             if( name != null ) transaction.collectData("PingAccess-ProxyName", name.toString(), dataScopes);
           }
         } catch( ReflectorException rex ) {
-          this.getLogger().warn("ReflectorException in Exchange.getProxy().getName() retrieval: "+ rex, rex);
+          this.getLogger().info("ReflectorException in Exchange.getProxy().getName() retrieval: "+ rex, rex);
         }
         this.getLogger().debug(String.format("onMethodBegin() end method: %s.%s() transaction: %s",className,methodName,transaction.getUniqueIdentifier()));
         return transaction;
@@ -152,16 +152,16 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
                 builder.withURL( scheme.toString() +"://"+ host.toString() + uri.toString() );
                 this.getLogger().debug("URL Set to: "+ scheme.toString() +"://"+ host.toString() + uri.toString() );
               } catch( java.net.MalformedURLException ex ) {
-                this.getLogger().warn("MalformedURLException: url == "+ scheme.toString() +"://"+ host.toString() + uri.toString());
+                this.getLogger().info("MalformedURLException: url == "+ scheme.toString() +"://"+ host.toString() + uri.toString());
               }
             }
           }
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in URL retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in URL retrieval: "+ rex, rex);
       }
       
       if( request == null ) {
-        this.getLogger().warn("Abandoning attempt to build ServletContext, request object still null");
+        this.getLogger().info("Abandoning attempt to build ServletContext, request object still null");
         return builder.build();
       }  
 
@@ -183,7 +183,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
           builder.withHeaders( appdHeaders );
         }
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in Header retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in Header retrieval: "+ rex, rex);
       }
 
       try {
@@ -206,7 +206,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
           }
         }
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in Cookies retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in Cookies retrieval: "+ rex, rex);
       }
 
       try{
@@ -216,7 +216,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
           this.getLogger().debug("Made it into set Parameters, reflection makes printing annoying");
         }
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in Query Parameters retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in Query Parameters retrieval: "+ rex, rex);
       }
 
       try {
@@ -226,7 +226,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
           this.getLogger().debug("Request Method set to: "+ method);
         }
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in Request Method retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in Request Method retrieval: "+ rex, rex);
       }
 
       try {
@@ -234,7 +234,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
         if( userAgentHost != null ) builder.withHostOriginatingAddress( (String)userAgentHost );
         this.getLogger().debug("Host Originating Address set to: "+ userAgentHost);
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in Host Originating Address retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in Host Originating Address retrieval: "+ rex, rex);
       }
 
       try {
@@ -242,7 +242,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
         if( responseTargetHost != null ) builder.withHostValue( responseTargetHost.toString() ); 
         this.getLogger().debug("Host Value set to: "+ responseTargetHost);
       } catch( ReflectorException rex ) {
-        this.getLogger().warn("ReflectorException in Host Value retrieval: "+ rex, rex);
+        this.getLogger().info("ReflectorException in Host Value retrieval: "+ rex, rex);
       }
         
       ServletContext sc = builder.build();
@@ -271,7 +271,7 @@ public class PingAccessEntryPointInterceptor extends MyBaseInterceptor {
               }
       }
     } catch( ReflectorException rex ) {
-      this.getLogger().warn("ReflectorException in Correlation Header retrieval: "+ rex, rex);
+      this.getLogger().info("ReflectorException in Correlation Header retrieval: "+ rex, rex);
     }
     return null;
   }
