@@ -4,6 +4,14 @@ Ping Access Agent Plugin
 This AppDynamics iSDK Agent Plugin provides configuration support to create Business Transactions for PingAccess requests and continue correlation both inbound and outbound for the same.
 It also supplies useful analytics data, which can be disabled. The volumes can be quite high on that data and it may max out injestion limits for a customer. YMMV
 
+### FlowMap
+
+![flowmap.png](doc-images%2Fflowmap.png)
+
+### Business Transactions
+
+![bts.png](doc-images%2Fbts.png)
+
 ## Required
 - Agent version 21.0+
 - Java 8
